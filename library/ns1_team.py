@@ -362,7 +362,8 @@ class NS1Team(NS1ModuleBase):
         """
         team_delete = self.ns1.team()
         team_delete.delete(team_id)
-    def build_permissions(self, ):
+
+    def build_permissions(self):
         """Builds a complete set of permissions based on defaults with values
         updated by task parameters.
 
@@ -370,11 +371,7 @@ class NS1Team(NS1ModuleBase):
         parameters.
         :rtype: dict
         """
-        default_permissions = dict(
-            ip_whitelist=[],
-            name=self.module.params.get("name"),
-            permissions=_default_perms
-            )
+        default_permissions = dict(permissions=_default_perms)
         built_permissions = copy.deepcopy(default_permissions)
         for key in default_permissions["permissions"]:
             if self.module.params["permissions"] is None:
@@ -385,27 +382,31 @@ class NS1Team(NS1ModuleBase):
                         key
                     ].items():
                         built_permissions["permissions"][key][key_2] = value_2
-        if self.module.params["ip_whitelist"] is not None:
-            built_permissions["ip_whitelist"] = self.module.params["ip_whitelist"]
         return built_permissions
 
+    def build_ip_whitelist(self):
+        """Builds a list of dicts modeled to be the same as the API call.
 
-    def build_ip_whitelist(self, ):
-
+        :return: A list of dicts
+        :rtype: list
+        """
+        built_ip_whitelist = dict(ip_whitelist=[])
+        if self.module.params["ip_whitelist"] is not None:
+            built_ip_whitelist["ip_whitelist"] = self.module.params["ip_whitelist"]
+        return built_ip_whitelist
 
     def build_changes(self):
-        """Builds a complete set of permissions based on defaults with values
-        updated by task parameters.
+        """Builds a complete API call by assembling returned data from functions.
 
-        :return: A complete set of permissions.
+        :return: A complete API call.
         parameters.
         :rtype: dict
         """
         built_changes = dict(
             name=self.module.params.get("name"),
-            )
-        built_permissions = self.build_permissions()
-        built_ip_whitelist = self.build_ip_whitelist()
+        )
+        built_changes.update(self.build_permissions())
+        built_changes.update(self.build_ip_whitelist())
         return built_changes
 
     def present(self, before, team_id):
@@ -516,7 +517,24 @@ class NS1Team(NS1ModuleBase):
                 result["diff"]["before"] = before
             if team is not None:
                 result["diff"]["after"] = team
-        return result
+        return self.remove_ids(result)
+
+    def remove_ids(self, result):
+        result_2 = copy.deepcopy(result)
+        for k, v in result["diff"].items():
+            if not isinstance(v, str):
+                # ? Is there a better way to do this?
+                # ? Is this a good use of try/except?
+                try:
+                    del result_2["diff"][k]["id"]
+                except:
+                    pass
+                try:
+                    for entry in result_2["diff"][k]["ip_whitelist"]:
+                        del entry["id"]
+                except:
+                    pass
+        return result_2
 
 
 def main():
