@@ -23,36 +23,34 @@ short_description: Create, modify and delete NS1 account teams.
 version_added: "3.1"
 
 description:
-  - Create, modify and delete team objects.
+  - Create, modify and delete team objects along with permissions to control access to portal or API.
 
 options:
   apiKey:
-    description:
-      - Unique client api key that can be created via the NS1 portal.
+    description: Unique client api key that can be created via the NS1 portal.
     type: str
     required: true
+  endpoint:
+    description: NS1 API endpoint. Defaults to https://api.nsone.net/v1/
+    type: str
+    required: false
+  ignore_ssl:
+    description: Whether to ignore SSL errors. Defaults to false
+    type: bool
+    required: false
   name:
-    description:
-      - Name of the team being created, updated, or deleted.
+    description: Name of the team being created, updated, or deleted.
     type: str
     required: true
   state:
-    description:
-      - Whether the team should be present or not.  Use C(present) to create
-        or update and C(absent) to delete.
+    description: Whether the team should be present or not.  Use C(present) to create or update and C(absent) to delete.
     type: str
     default: present
     choices:
       - absent
       - present
     required: false
-  endpoint:
-    description:
-      - NS1 API endpoint. Defaults to https://api.nsone.net/v1/
-    type: str
-    default: https://api.nsone.net/v1/
-    required: false
-  ip_whitelist: [],
+  ip_whitelist:
     description: Array of IP addresses/networks to which to grant the API key access.
     type: list
     required: false
@@ -85,10 +83,6 @@ options:
         description: Group of account-related permissions.
         required: false
         suboptions:
-          manage_plan: 
-            description:
-            default: flase
-            required: false
           manage_users:
             description: Allows (or prevents, if false) the team to create or update users.
             type: bool
@@ -171,7 +165,7 @@ options:
             default: flase
             required: false
           zones_deny:
-            description: List of specific zones to which the team is denied access. 
+            description: List of specific zones to which the team is denied access.
             type: list
             required: false
           view_zones:
@@ -179,8 +173,8 @@ options:
             type: bool
             default: flase
             required: false
-          zones_allow_by_default: Set to true to allow access to all zones except for those listed under zones_deny. Set to false to deny access to all zones by default except for those listed under zones_allow.
-            description:
+          zones_allow_by_default:
+            description: Set to true to allow access to all zones except for those listed under zones_deny. Set to false to deny access to all zones by default except for those listed under zones_allow.
             type: bool
             default: flase
             required: false
@@ -268,7 +262,6 @@ class NS1Team(NS1ModuleBase):
                         type="dict",
                         default=None,
                         options=dict(
-                            manage_plan=dict(type="bool", default=False),
                             manage_users=dict(type="bool", default=False),
                             view_invoices=dict(type="bool", default=False),
                             manage_teams=dict(type="bool", default=False),
@@ -419,18 +412,17 @@ class NS1Team(NS1ModuleBase):
         occurred and second value is new or updated team object
         :rtype: tuple(bool, dict)
         """
+        changed = False
+        team = None
         built_changes = self.build_changes()
-        if team_id is None:
-            team = self.create(built_changes)
-        else:
-            team = self.update(team_id, built_changes)
-        # ? Is there a better way to handle being in check mode where update
-        # ? and create resolve as None?
-        if team is None:
+        if self.module.check_mode:
             team = built_changes
-        if team == before:
-            changed = False
         else:
+            if team_id is None:
+                team = self.create(built_changes)
+            else:
+                team = self.update(team_id, built_changes)
+        if team != before:
             changed = True
         return changed, team
 
@@ -487,17 +479,26 @@ class NS1Team(NS1ModuleBase):
         :rtype: dict
         """
         # Setup and gather info
-        changed = False
+        ## Retreive the name passed into the module from a task.
         team_name = self.module.params.get("name")
+        ## Creates a var that will contain data of an existing team or be a None Type.
+        ## The None type is used for determining state.
         before = self.check_existence(team_name)
+        ## Passes in the `before` var for type comparision and returning required data for later calls if a team already exists.
         team_id = self.get_team_id(before)
         # Take action based on module params with gathered info passed in.
+        ## Retreive desired state passed into the module from a task.
         state = self.module.params.get("state")
+        ## Action based on a team state being set to present.
+        ## Will result in a team being created or updated.
         if state == "present":
             changed, team = self.present(before, team_id)
+        ## Action based on a team state being set to absent.
+        ## Assumes a team to remove already exists.
         if state == "absent":
             changed = self.absent(team_id)
             team = {}
+        # Takes passed in state changes for id scrubbing and building of final output.
         return self.build_result(changed, team, before, team_name)
 
     def build_result(self, changed, team, before, team_name):
@@ -525,14 +526,12 @@ class NS1Team(NS1ModuleBase):
             if not isinstance(v, str):
                 # ? Is there a better way to do this?
                 # ? Is this a good use of try/except?
-                try:
+                if "id" in result_2["diff"][k]:
                     del result_2["diff"][k]["id"]
-                except:
-                    pass
                 try:
                     for entry in result_2["diff"][k]["ip_whitelist"]:
                         del entry["id"]
-                except:
+                except KeyError:
                     pass
         return result_2
 
