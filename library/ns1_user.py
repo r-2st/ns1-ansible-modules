@@ -16,14 +16,14 @@ ANSIBLE_METADATA = {
 
 DOCUMENTATION = r"""
 ---
-module: ns1_team
+module: ns1_user
 
-short_description: Create, modify and delete NS1 account teams.
+short_description: Create, modify and delete NS1 account users.
 
 version_added: "3.1"
 
 description:
-  - Create, modify and delete team objects along with permissions to control access to portal or API.
+  - Create, modify and delete user objects along with permissions to control access to portal or API.
 
 options:
   apiKey:
