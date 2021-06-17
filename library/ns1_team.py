@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright: (c) 2020, NS1
+# Copyright: (c) 2021, NS1
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -28,38 +28,124 @@ description:
 options:
   apiKey:
     description: Unique client api key that can be created via the NS1 portal.
-    type: str
     required: true
+    type: str
   endpoint:
     description: NS1 API endpoint. Defaults to https://api.nsone.net/v1/
-    type: str
     required: false
+    type: str
   ignore_ssl:
     description: Whether to ignore SSL errors. Defaults to false
+    required: false
     type: bool
-    required: false
-  name:
-    description: Name of the team being created, updated, or deleted.
-    type: str
-    required: true
-  state:
-    description: Whether the team should be present or not.  Use C(present) to create or update and C(absent) to delete.
-    type: str
-    default: present
-    choices:
-      - absent
-      - present
-    required: false
   ip_whitelist:
     description: Array of IP addresses/networks to which to grant the API key access.
+    required: false
     type: list
-    required: false
+  name:
+    description: Name of the team being created, updated, or deleted.
+    required: true
+    type: str
   permissions:
-    description: All supported permissions
-    type: dict
-    required: false
     default: None
+    description: All supported permissions
+    required: false
     suboptions:
+      account:
+        description: Group of account-related permissions.
+        required: false
+        suboptions:
+          manage_account_settings:
+            description: Allows (or prevents, if false) the team to manage account settings.
+            type: bool
+            default: false
+            required: false
+          manage_apikeys:
+            description: Allows (or prevents, if false) the team to create or update API keys.
+            type: bool
+            default: false
+            required: false
+          manage_ip_whitelist:
+            description: Allows (or prevents, if false) the team to create or update IP "allow" lists.
+            type: bool
+            default: false
+            required: false
+          manage_payment_methods:
+            description: Allows (or prevents, if false) the team to manage account payment methods.
+            type: bool
+            default: false
+            required: false
+          manage_plan:
+            description: Allows (or prevents, if false) the team to manage account plans.
+            type: bool
+            default: false
+            required: false
+          manage_teams:
+            description: Allows (or prevents, if false) the team to create or update teams.
+            type: bool
+            default: false
+            required: false
+          manage_users:
+            description: Allows (or prevents, if false) the team to create or update users.
+            type: bool
+            default: false
+            required: false
+          view_activity_log:
+            description: Allows (or prevents, if false) the team to view the account activity log.
+            type: bool
+            default: false
+            required: false
+          view_invoices:
+            description: Allows (or prevents, if false) the team to view account invoices.
+            type: bool
+            default: false
+            required: false
+      data:
+        description: Group of data-related permissions.
+        required: false
+        suboptions:
+          manage_datafeeds:
+            description: Allows (or prevents, if false) the team to create and modify data feeds.
+            type: bool
+            default: false
+            required: false
+          manage_datasources:
+            description: Allows (or prevents, if false) the team to create and modify data sources.
+            type: bool
+            default: false
+            required: false
+          push_to_datafeeds:
+            description: Allows (or prevents, if false) the team to push data to NS1 data feeds.
+            type: bool
+            default: false
+            required: false
+      dns:
+        description: Group of DNS-related permissions.
+        required: false
+        suboptions:
+          manage_zones:
+            default: false
+            description:  Allows (or prevents, if false) the team to create or modify zones.
+            required: false
+            type: bool
+          view_zones:
+            default: false
+            description: Allows (or prevents, if false) the team to view zones.
+            required: false
+            type: bool
+          zones_allow_by_default:
+            default: false
+            description: Set to true to allow access to all zones except for those listed under zones_deny. Set to false to deny access to all zones by default except for those listed under zones_allow.
+            required: false
+            type: bool
+          zones_allow:
+            description: List of specific zones to which the API key is allowed access.
+            required: false
+            type: list
+          zones_deny:
+            description: List of specific zones to which the team is denied access.
+            required: false
+            type: list
       monitoring:
         description: Group of monitoring-related permissions.
         required: false
@@ -67,80 +153,17 @@ options:
           manage_jobs:
             description: Allows (or prevents, if false) the team to create or modify monitoring jobs.
             type: bool
-            default: flase
-            required: false
-          view_jobs:
-            description: Allows (or prevents, if false) the team to view monitoring jobs.
-            type: bool
-            default: flase
+            default: false
             required: false
           manage_lists:
             description: Allows (or prevents, if false) the team to create or modify notification lists.
             type: bool
-            default: flase
+            default: false
             required: false
-      account:
-        description: Group of account-related permissions.
-        required: false
-        suboptions:
-          manage_users:
-            description: Allows (or prevents, if false) the team to create or update users.
+          view_jobs:
+            description: Allows (or prevents, if false) the team to view monitoring jobs.
             type: bool
-            default: flase
-            required: false
-          view_invoices:
-            description: Allows (or prevents, if false) the team to view account invoices.
-            type: bool
-            default: flase
-            required: false
-          manage_teams:
-            description: Allows (or prevents, if false) the team to create or update teams.
-            type: bool
-            default: flase
-            required: false
-          view_activity_log:
-            description: Allows (or prevents, if false) the team to view the account activity log.
-            type: bool
-            default: flase
-            required: false
-          manage_account_settings:
-            description: Allows (or prevents, if false) the team to manage account settings.
-            type: bool
-            default: flase
-            required: false
-          manage_apikeys:
-            description: Allows (or prevents, if false) the team to create or update API keys.
-            type: bool
-            default: flase
-            required: false
-          manage_payment_methods:
-            description: Allows (or prevents, if false) the team to manage account payment methods.
-            type: bool
-            default: flase
-            required: false
-          manage_ip_whitelist:
-            description: Allows (or prevents, if false) the team to create or update IP "allow" lists.
-            type: bool
-            default: flase
-            required: false
-      data:
-        description: Group of data-related permissions.
-        required: false
-        suboptions:
-          push_to_datafeeds:
-            description: Allows (or prevents, if false) the team to push data to NS1 data feeds.
-            type: bool
-            default: flase
-            required: false
-          manage_datasources:
-            description: Allows (or prevents, if false) the team to create and modify data sources.
-            type: bool
-            default: flase
-            required: false
-          manage_datafeeds:
-            description: Allows (or prevents, if false) the team to create and modify data feeds.
-            type: bool
-            default: flase
+            default: false
             required: false
       security:
         description: Group of security-related permissions.
@@ -149,39 +172,21 @@ options:
           manage_global_2fa:
             description: Allows (or prevents, if false) the team to manage global two-factor authentication (2FA) settings.
             type: bool
-            default: flase
+            default: false
             required: false
-      dns:
-        description: Group of DNS-related permissions.
-        required: false
-        suboptions:
-          zones_allow:
-            description: List of specific zones to which the API key is allowed access.
-            type: list
-            required: false
-          manage_zones:
-            description:  Allows (or prevents, if false) the team to create or modify zones.
-            type: bool
-            default: flase
-            required: false
-          zones_deny:
-            description: List of specific zones to which the team is denied access.
-            type: list
-            required: false
-          view_zones:
-            description: Allows (or prevents, if false) the team to view zones.
-            type: bool
-            default: flase
-            required: false
-          zones_allow_by_default:
-            description: Set to true to allow access to all zones except for those listed under zones_deny. Set to false to deny access to all zones by default except for those listed under zones_allow.
-            type: bool
-            default: flase
-            required: false
+    type: dict
+  state:
+    choices:
+      - absent
+      - present
+    default: present
+    description: Whether the team should be present or not.  Use C(present) to create or update and C(absent) to delete.
+    required: false
+    type: str
 
 requirements:
-  - python >= 2.7
   - ns1-python >= 0.16.0
+  - python >= 2.7
 
 seealso:
   - name: Documentation for NS1 API
@@ -198,18 +203,18 @@ EXAMPLES = r"""
     module: ns1_team
     name: RO-Only
     permissions:
-      monitoring:
-        view_jobs: true
       account:
-        view_invoices: true
         view_activity_log: true
+        view_invoices: true
       dns:
         view_zones: true
+      monitoring:
+        view_jobs: true
 
 - name: delete team
   local_action:
-    module: ns1_team
     apiKey: "{{ ns1_token }}"
+    module: ns1_team
     name: NoLongerAdmin
     state: absent
 """
@@ -240,75 +245,76 @@ class NS1Team(NS1ModuleBase):
     def __init__(self):
         """Constructor method"""
         self.module_arg_spec = dict(
-            name=dict(required=True, type="str"),
             ip_whitelist=dict(required=False, type="list", default=None),
+            name=dict(required=True, type="str"),
             permissions=dict(
-                required=False,
-                type="dict",
                 default=None,
                 options=dict(
-                    monitoring=dict(
+                    account=dict(
+                        default=None,
+                        options=dict(
+                            manage_account_settings=dict(type="bool", default=False),
+                            manage_apikeys=dict(type="bool", default=False),
+                            manage_ip_whitelist=dict(type="bool", default=False),
+                            manage_payment_methods=dict(type="bool", default=False),
+                            manage_plan=dict(type="bool", default=False),
+                            manage_teams=dict(type="bool", default=False),
+                            manage_users=dict(type="bool", default=False),
+                            view_activity_log=dict(type="bool", default=False),
+                            view_invoices=dict(type="bool", default=False),
+                        ),
                         required=False,
                         type="dict",
+                    ),
+                    data=dict(
+                        default=None,
+                        options=dict(
+                            manage_datafeeds=dict(type="bool", default=False),
+                            manage_datasources=dict(type="bool", default=False),
+                            push_to_datafeeds=dict(type="bool", default=False),
+                        ),
+                        required=False,
+                        type="dict",
+                    ),
+                    dns=dict(
+                        default=None,
+                        options=dict(
+                            manage_zones=dict(type="bool", default=False),
+                            view_zones=dict(type="bool", default=False),
+                            zones_allow_by_default=dict(type="bool", default=False),
+                            zones_allow=dict(type="list", default=[]),
+                            zones_deny=dict(type="list", default=[]),
+                        ),
+                        required=False,
+                        type="dict",
+                    ),
+                    monitoring=dict(
                         default=None,
                         options=dict(
                             manage_jobs=dict(type="bool", default=False),
-                            view_jobs=dict(type="bool", default=False),
                             manage_lists=dict(type="bool", default=False),
+                            view_jobs=dict(type="bool", default=False),
                         ),
-                    ),
-                    account=dict(
                         required=False,
                         type="dict",
-                        default=None,
-                        options=dict(
-                            manage_users=dict(type="bool", default=False),
-                            view_invoices=dict(type="bool", default=False),
-                            manage_teams=dict(type="bool", default=False),
-                            view_activity_log=dict(type="bool", default=False),
-                            manage_account_settings=dict(type="bool", default=False),
-                            manage_apikeys=dict(type="bool", default=False),
-                            manage_payment_methods=dict(type="bool", default=False),
-                            manage_ip_whitelist=dict(type="bool", default=False),
-                        ),
-                    ),
-                    data=dict(
-                        required=False,
-                        type="dict",
-                        default=None,
-                        options=dict(
-                            push_to_datafeeds=dict(type="bool", default=False),
-                            manage_datasources=dict(type="bool", default=False),
-                            manage_datafeeds=dict(type="bool", default=False),
-                        ),
                     ),
                     security=dict(
-                        required=False,
-                        type="dict",
                         default=None,
                         options=dict(
                             manage_global_2fa=dict(type="bool", default=False),
                         ),
-                    ),
-                    dns=dict(
                         required=False,
                         type="dict",
-                        default=None,
-                        options=dict(
-                            zones_allow=dict(type="list", default=False),
-                            manage_zones=dict(type="bool", default=False),
-                            zones_deny=dict(type="list", default=False),
-                            view_zones=dict(type="bool", default=False),
-                            zones_allow_by_default=dict(type="bool", default=False),
-                        ),
                     ),
                 ),
+                required=False,
+                type="dict",
             ),
             state=dict(
+                choices=["present", "absent"],
+                default="present",
                 required=False,
                 type="str",
-                default="present",
-                choices=["present", "absent"],
             ),
         )
 
@@ -322,12 +328,12 @@ class NS1Team(NS1ModuleBase):
     def update(self, team_id, built_changes):
         """Updates a team with permissions from task
 
-        :param team_id: Zone object of existing zone returned by NS1
+        :param team_id: Team object of existing team returned by NS1.
         :type team_id: str
-        :param built_changes: Dict of permissions to be applied to a new
+        :param built_changes: Dict of permissions to be applied to a new.
         team.
         :type built_changes: dict
-        :return: The updated zone object returned by NS1
+        :return: The updated team object returned by NS1.
         :rtype: dict
         """
         team_update = self.ns1.team()
@@ -340,8 +346,8 @@ class NS1Team(NS1ModuleBase):
         :param built_changes: Dict of permissions to be applied to a new
         team.
         :type built_changes: dict
-        :return: [description]
-        :rtype: [type]
+        :return: The created team object returned by NS1.
+        :rtype: dict
         """
         team_create = self.ns1.team()
         return team_create.create(**built_changes)
@@ -356,12 +362,26 @@ class NS1Team(NS1ModuleBase):
         team_delete = self.ns1.team()
         team_delete.delete(team_id)
 
+    def remove_ids(self, data):
+        """Removes ID's created/returned from NS1 API. Post ID removed
+        dicts are used to for comparision to see if a change is being
+        made.
+
+        :param data: team API data.
+        :type data: dict
+        :return: Team API data sans ID.
+        :rtype: dict
+        """
+        if data is not None:
+            if "id" in data:
+                del data["id"]
+        return data
+
     def build_permissions(self):
         """Builds a complete set of permissions based on defaults with values
         updated by task parameters.
 
         :return: A complete set of permissions.
-        parameters.
         :rtype: dict
         """
         default_permissions = dict(permissions=_default_perms)
@@ -392,7 +412,6 @@ class NS1Team(NS1ModuleBase):
         """Builds a complete API call by assembling returned data from functions.
 
         :return: A complete API call.
-        parameters.
         :rtype: dict
         """
         built_changes = dict(
@@ -406,10 +425,12 @@ class NS1Team(NS1ModuleBase):
         """Goes through the process of creating a new team, if needed, or
         updating a pre-existing one with new permissions.
 
+        :param before: Existing team info if it exists.
+        :type before: dict/none
         :param team_id: Previously collected id if the team exists.
         :type team_id: str
         :return: Tuple in which first value reflects whether or not a change
-        occurred and second value is new or updated team object
+        occurred and second value is new or updated team object.
         :rtype: tuple(bool, dict)
         """
         changed = False
@@ -422,6 +443,8 @@ class NS1Team(NS1ModuleBase):
                 team = self.create(built_changes)
             else:
                 team = self.update(team_id, built_changes)
+        before = self.remove_ids(before)
+        team = self.remove_ids(team)
         if team != before:
             changed = True
         return changed, team
@@ -433,7 +456,7 @@ class NS1Team(NS1ModuleBase):
         :param team_id: Previously collected id if the team exists.
         :type team_id: str
         :return: Tuple in which first value reflects whether or not a change
-        occurred and second value is the removed team object
+        occurred and second value is the removed team object.
         :rtype: tuple(bool, dict)
         """
         if team_id is None:
@@ -446,9 +469,9 @@ class NS1Team(NS1ModuleBase):
         """Takes gathered information of a pre-existing team and looks for the
         id required by update and delete actions.
 
-        :param before: Existing team info
-        :type before: dict
-        :return: Id of an existing team
+        :param before: Existing team info if it exists.
+        :type before: dict/none
+        :return: Id of an existing team.
         :rtype: str
         """
         if before is not None:
@@ -460,14 +483,14 @@ class NS1Team(NS1ModuleBase):
         exists to establish existing state before changes are made. Also, this
         is the first step in getting team_id for later changes.
 
-        :param team_name: Existing set of parameters
-        :type have: str
+        :param team_name: Name parameter passed into the module from a task.
+        :type team_name: str
         :return: Team info before changes. If no info found then None will be returned.
-        :rtype: dict
+        :rtype: dict/none
         """
         team_list = self.ns1.team()
         for team in team_list.list():
-            if team["name"].lower() == team_name.lower():
+            if team["name"] == team_name:
                 team_found = team
                 return team_found
 
@@ -475,26 +498,26 @@ class NS1Team(NS1ModuleBase):
         """Main execution method of module.  Creates, updates or deletes a
         team based on Ansible parameters.
 
-        :return: Results of module execution
+        :return: Results of module execution.
         :rtype: dict
         """
         # Setup and gather info
-        ## Retreive the name passed into the module from a task.
+        # Retreive the name passed into the module from a task.
         team_name = self.module.params.get("name")
-        ## Creates a var that will contain data of an existing team or be a None Type.
-        ## The None type is used for determining state.
+        # Creates a var that will contain data of an existing team or be a None Type.
+        # The None type is used for determining state.
         before = self.check_existence(team_name)
-        ## Passes in the `before` var for type comparision and returning required data for later calls if a team already exists.
+        # Passes in the `before` var for type comparision and returning required data for later calls if a team already exists.
         team_id = self.get_team_id(before)
         # Take action based on module params with gathered info passed in.
-        ## Retreive desired state passed into the module from a task.
+        # Retreive desired state passed into the module from a task.
         state = self.module.params.get("state")
-        ## Action based on a team state being set to present.
-        ## Will result in a team being created or updated.
+        # Action based on a team state being set to present.
+        # Will result in a team being created or updated.
         if state == "present":
             changed, team = self.present(before, team_id)
-        ## Action based on a team state being set to absent.
-        ## Assumes a team to remove already exists.
+        # Action based on a team state being set to absent.
+        # Assumes a team to remove already exists.
         if state == "absent":
             changed = self.absent(team_id)
             team = {}
@@ -504,11 +527,15 @@ class NS1Team(NS1ModuleBase):
     def build_result(self, changed, team, before, team_name):
         """Builds dict of results from module execution to pass to module.exit_json()
 
-        :param changed: Whether or not a change occurred
+        :param changed: Whether or not a change occurred.
         :type changed: bool
-        :param zone: Zone object returned by NS1 of new or updated zone
-        :type zone: dict
-        :return: Results of module execution
+        :param team:
+        :type team: dict
+        :param before: Existing team info if it exists.
+        :type before: dict/none
+        :param team_name: Name parameter passed into the module from a task.
+        :type team_name: str
+        :return: Results of module execution.
         :rtype: dict
         """
         result = {"changed": changed}
@@ -518,22 +545,7 @@ class NS1Team(NS1ModuleBase):
                 result["diff"]["before"] = before
             if team is not None:
                 result["diff"]["after"] = team
-        return self.remove_ids(result)
-
-    def remove_ids(self, result):
-        result_2 = copy.deepcopy(result)
-        for k, v in result["diff"].items():
-            if not isinstance(v, str):
-                # ? Is there a better way to do this?
-                # ? Is this a good use of try/except?
-                if "id" in result_2["diff"][k]:
-                    del result_2["diff"][k]["id"]
-                try:
-                    for entry in result_2["diff"][k]["ip_whitelist"]:
-                        del entry["id"]
-                except KeyError:
-                    pass
-        return result_2
+        return result
 
 
 def main():

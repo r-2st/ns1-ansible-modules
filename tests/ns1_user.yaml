@@ -1,1 +1,20 @@
 ---
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    ##########
+    # Verify ansible test user is absent before starting.
+    ##########
+    - name: setup
+      local_action:
+        module: ns1_user
+        apiKey: "{{ ns1_token }}"
+        username: "{{ test_user }}"
+        # email: "{{ test_user + '@pharmakom.net' }}"
+        state: absent
+      register: user_setup
+
+    - name: Verify setup
+      assert:
+        that:
+          - user_setup is success
