@@ -353,8 +353,8 @@ class NS1user(NS1ModuleBase):
                         type="dict",
                     ),
                 ),
-                #     required=False,
-                #     type="dict",
+                required=False,
+                type="dict",
             ),
             state=dict(
                 choices=["present", "absent"],
@@ -421,19 +421,43 @@ class NS1user(NS1ModuleBase):
             built_notify["notify"]["billing"] = self.module.params["notify"]["billing"]
         return built_notify
 
-    def build_name(self, username):
+    def build_email(self, before, email, username):
+        """Builds an email address. Can return a NoneType for use in later
+        checks
+
+        :param email: Passed in email address
+        :type email: str
+        :return: An email or nothing
+        :rtype: str/none
+        """
+        # Perform check if all info to work with a user is given.
+        # If not then immediately fail module run.
+        # Done so a user email does not have to be provided if state == 'absent'.
+        if before is None and email is None:
+            return self.module.fail_json(
+                msg="error: Email for creating user %s is missing " % username
+            )
+        if before is not None:
+            built_email = dict(email=before["email"])
+        if email is not None:
+            built_email = dict(email=email)
+        return built_email
+
+    def build_name(self, before, username):
         """Creates a default name if none are provided as ns1-python lib appears to require one.
 
         :return: A name
         :rtype: str
         """
-        built_name = dict(name="")
-        built_name["name"] = self.module.params["name"]
-        if self.module.params["name"] is None:
-            built_name["name"] = username
+        if before is None and self.module.params["name"] is None:
+            built_name = dict(name=username)
+        if before is not None:
+            built_name = dict(name=before["name"])
+        if self.module.params["name"] is not None:
+            built_name = dict(name=self.module.params["name"])
         return built_name
 
-    def build_permissions(self):
+    def build_permissions(self, before):
         """Builds a complete set of permissions based on defaults with values
         updated by task parameters.
 
@@ -442,6 +466,9 @@ class NS1user(NS1ModuleBase):
         """
         default_permissions = dict(permissions=_default_perms)
         built_permissions = copy.deepcopy(default_permissions)
+        if before is not None:
+            before_copy = copy.deepcopy(before)
+            built_permissions["permissions"] = before_copy["permissions"]
         for key in default_permissions["permissions"]:
             if "permissions" in self.module.params:
                 if isinstance(self.module.params["permissions"], dict):
@@ -479,7 +506,37 @@ class NS1user(NS1ModuleBase):
                         built_teams["teams"].append(entry["id"])
         return built_teams
 
-    def build_changes(self, email, username):
+    def clean_data(self, data):
+        """Removes output from API that we don't care about for accurate
+        detection of changes.
+
+        :param data: State of pre or post change.
+        :type before: dict
+        :return: Cleaned state data.
+        :rtype: dict
+        """
+        if data is not None:
+            keys = ["created","shared_auth", "last_access"]
+            for key in keys:
+                if key in data:
+                    data.pop(key)
+        return data
+
+    def check_for_teams(self, before):
+        """Does a check to see if team parameters are being provided and if
+        so then remove permissions. The reason is due to user API updates with a
+        team provided returns an empty permissions dict.
+
+        :param before: Existing state of user.
+        :type before: dict
+        :return: User info before changes with permissions based on API behavior.
+        :rtype: dict
+        """
+        if self.module.params["teams"] is not None:
+            before["permissions"] = {}
+        return before
+
+    def build_changes(self, before, email, username):
         """Builds a complete API call by assembling returned data from functions.
 
         :return: A complete API call.
@@ -492,20 +549,17 @@ class NS1user(NS1ModuleBase):
         built_changes.update({"2fa_enabled": self.module.params["two_fa_enabled"]})
         # Put into its own function for future proofing against possible future data structure growth.
         built_changes.update(self.build_notify())
-        # Check is done here to ensure email doesn't accidentally get overwritten while doing an update.
-        # Doesn't warrent the effort to create/manage a separate function.
-        if email is not None:
-            built_changes.update({"email": email})
-        built_changes.update(self.build_name(username))
+        built_changes.update(self.build_email(before, email, username))
+        built_changes.update(self.build_name(before, username))
         built_changes.update(
             {"ip_whitelist_strict": self.module.params["ip_whitelist_strict"]}
         )
         built_changes.update(self.build_ip_whitelist())
         built_changes.update(self.build_teams())
-        built_changes.update(self.build_permissions())
+        built_changes.update(self.build_permissions(before))
         return built_changes
 
-    def present(self, before, username, email):
+    def present(self, before, username):
         """Goes through the process of creating a new user, if needed, or
         updating a pre-existing one with new permissions.
 
@@ -519,7 +573,8 @@ class NS1user(NS1ModuleBase):
         """
         changed = False
         after = None
-        built_changes = self.build_changes(email, username)
+        email = self.module.params.get("email")
+        built_changes = self.build_changes(before, email, username)
         if self.module.check_mode:
             after = built_changes
         else:
@@ -527,6 +582,9 @@ class NS1user(NS1ModuleBase):
                 after = self.create(built_changes)
             else:
                 after = self.update(built_changes)
+                before = self.check_for_teams(before)
+        after = self.clean_data(after)
+        before = self.clean_data(before)
         if after != before:
             changed = True
         return changed, after
@@ -582,16 +640,7 @@ class NS1user(NS1ModuleBase):
         # Action based on a user state being set to present.
         # Will result in a user being created or updated.
         if state == "present":
-            # Create var to be used for checking if new user creation criteria is met.
-            email = self.module.params.get("email")
-            # Perform check if all info to work with a user is given.
-            # If not then immediately fail module run.
-            # Done so a user email does not have to be provided if state == 'absent'.
-            if email is None and before is None:
-                return self.module.fail_json(
-                    msg="error: Email for creating user %s is missing " % username
-                )
-            changed, after = self.present(before, username, email)
+            changed, after = self.present(before, username)
         # Action based on a user state being set to absent.
         # Assumes a user to remove already exists.
         if state == "absent":

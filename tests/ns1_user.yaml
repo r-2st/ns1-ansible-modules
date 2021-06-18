@@ -17,6 +17,7 @@
     #   assert:
     #     that:
     #       - user_setup is success
+    #       - user_setup.diff.after == {}
 
     ##########
     # Test user creation
@@ -29,31 +30,115 @@
         name: "you little..."
         email: "{{ test_user + '@pharmakom.net' }}"
         state: present
-        teams:
-          - "kowalski"
-          - "rico"
       register: user_create
+
+    - name: Printing out hostvars
+      debug:
+        var: user_create
+      tags:
+        - debug_info
+        - always
 
     - name: Verify user creation
       assert:
         that:
           - user_create is changed
           - user_create.diff.after.username == "{{ test_user }}"
+          - user_create.diff.after.name == "you little..."
+          - user_create.diff.after.email == "{{ test_user + '@pharmakom.net' }}"
 
     ##########
-    # Test user name change
+    # Test user creation
     ##########
     - name: Test user name change
       local_action:
         module: ns1_user
         apiKey: "{{ ns1_token }}"
         username: "{{ test_user }}"
-        name: "Damn it Shinji"
+        name: "Stop crying"
         state: present
-      register: user_name_update
+      register: user_name_change
 
-    - name: Verify user creation
+    - name: Verify user name change
       assert:
         that:
-          - user_create is changed
-          - user_create.diff.after.username == "{{ test_user }}"
+          - user_name_change is changed
+          - user_name_change.diff.after.name == "Stop crying"
+
+    ##########
+    # Test adding teams to user
+    ##########
+    - name: Test team add
+      local_action:
+        module: ns1_user
+        apiKey: "{{ ns1_token }}"
+        username: "{{ test_user }}"
+        state: present
+        teams:
+          - "kowalski"
+          - "rico"
+      register: team_add
+
+    - name: Verify team add
+      assert:
+        that:
+          - team_add is changed
+          - team_add.diff.after.teams == ["605175c91720ab00ac048e51","6062bcdfc44e5500b7f94533"]
+
+    ##########
+    # Test removing teams from user
+    ##########
+    - name: Test team remove
+      local_action:
+        module: ns1_user
+        apiKey: "{{ ns1_token }}"
+        username: "{{ test_user }}"
+        state: present
+      register: team_remove
+
+    - name: Verify team remove
+      assert:
+        that:
+          - team_remove is changed
+          - team_remove.diff.after.teams == []
+
+    ##########
+    # Test adding permissions to user
+    ##########
+    - name: Test user permissions
+      local_action:
+        module: ns1_user
+        apiKey: "{{ ns1_token }}"
+        username: "{{ test_user }}"
+        state: present
+        permissions:
+          data:
+            push_to_datafeeds: true
+            manage_datasources: true
+            manage_datafeeds: true
+      register: user_permissions
+
+    - name: Verify user permissions
+      assert:
+        that:
+          - user_permissions is changed
+          - user_permissions.diff.after.permissions.data.push_to_datafeeds == true
+          - user_permissions.diff.after.permissions.data.manage_datasources == true
+          - user_permissions.diff.after.permissions.data.manage_datafeeds == true
+
+    ##########
+    # Test removing user
+    ##########
+    - name: Test user delete
+      local_action:
+        module: ns1_user
+        apiKey: "{{ ns1_token }}"
+        username: "{{ test_user }}"
+        state: absent
+      register: user_delete
+
+    - name: Verify user delete
+      assert:
+        that:
+          - user_delete is success
+          - user_delete.diff.after == {}
