@@ -353,8 +353,8 @@ class NS1user(NS1ModuleBase):
                         type="dict",
                     ),
                 ),
-            #     required=False,
-            #     type="dict",
+                #     required=False,
+                #     type="dict",
             ),
             state=dict(
                 choices=["present", "absent"],
@@ -363,7 +363,7 @@ class NS1user(NS1ModuleBase):
                 type="str",
             ),
             teams=dict(required=False, type="list", default=None),
-            username=dict(required=True, type="str")
+            username=dict(required=True, type="str"),
         )
 
         NS1ModuleBase.__init__(
@@ -475,8 +475,8 @@ class NS1user(NS1ModuleBase):
             team_list = self.ns1.team()
             for team in self.module.params["teams"]:
                 for entry in team_list.list():
-                    if entry['name'] == team:
-                        built_teams['teams'].append(entry['id'])
+                    if entry["name"] == team:
+                        built_teams["teams"].append(entry["id"])
         return built_teams
 
     def build_changes(self, email, username):
@@ -497,7 +497,9 @@ class NS1user(NS1ModuleBase):
         if email is not None:
             built_changes.update({"email": email})
         built_changes.update(self.build_name(username))
-        built_changes.update({"ip_whitelist_strict": self.module.params["ip_whitelist_strict"]})
+        built_changes.update(
+            {"ip_whitelist_strict": self.module.params["ip_whitelist_strict"]}
+        )
         built_changes.update(self.build_ip_whitelist())
         built_changes.update(self.build_teams())
         built_changes.update(self.build_permissions())
@@ -586,7 +588,9 @@ class NS1user(NS1ModuleBase):
             # If not then immediately fail module run.
             # Done so a user email does not have to be provided if state == 'absent'.
             if email is None and before is None:
-                return self.module.fail_json(msg="error: Email for creating user %s is missing " % username)
+                return self.module.fail_json(
+                    msg="error: Email for creating user %s is missing " % username
+                )
             changed, after = self.present(before, username, email)
         # Action based on a user state being set to absent.
         # Assumes a user to remove already exists.
