@@ -373,11 +373,11 @@ class NS1user(NS1ModuleBase):
         )
 
     @Decorators.skip_in_check_mode
-    def update(self, user_id, built_changes):
+    def update(self, built_changes):
         """Updates a user with permissions from task
 
-        :param user_id: user object of existing user returned by NS1.
-        :type user_id: str
+        :param username: user object of existing user returned by NS1.
+        :type username: str
         :param built_changes: Dict of permissions to be applied to a new.
         user.
         :type built_changes: dict
@@ -385,7 +385,7 @@ class NS1user(NS1ModuleBase):
         :rtype: dict
         """
         user_update = self.ns1.user()
-        return user_update.update(user_id, **built_changes)
+        return user_update.update(**built_changes)
 
     @Decorators.skip_in_check_mode
     def create(self, built_changes):
@@ -401,29 +401,37 @@ class NS1user(NS1ModuleBase):
         return user_create.create(**built_changes)
 
     @Decorators.skip_in_check_mode
-    def delete(self, user_id):
+    def delete(self, username):
         """Deletes a user.
 
-        :param user_id: Id of an existing user.
-        :type user_id: str
+        :param username: existing user.
+        :type username: str
         """
         user_delete = self.ns1.user()
-        user_delete.delete(user_id)
+        user_delete.delete(username)
 
-    def remove_ids(self, data):
-        """Removes ID's created/returned from NS1 API. Post ID removed
-        dicts are used to for comparision to see if a change is being
-        made.
+    def build_notify(self):
+        """Builds a list of dicts modeled to be the same as the API call.
 
-        :param data: user API data.
-        :type data: dict
-        :return: user API data sans ID.
-        :rtype: dict
+        :return: A list of dicts
+        :rtype: list
         """
-        if data is not None:
-            if "id" in data:
-                del data["id"]
-        return data
+        built_notify = dict(notify={"billing": False})
+        if self.module.params["notify"] is not None:
+            built_notify["notify"]["billing"] = self.module.params["notify"]["billing"]
+        return built_notify
+
+    def build_name(self, username):
+        """Creates a default name if none are provided as ns1-python lib appears to require one.
+
+        :return: A name
+        :rtype: str
+        """
+        built_name = dict(name="")
+        built_name["name"] = self.module.params["name"]
+        if self.module.params["name"] is None:
+            built_name["name"] = username
+        return built_name
 
     def build_permissions(self):
         """Builds a complete set of permissions based on defaults with values
@@ -435,14 +443,14 @@ class NS1user(NS1ModuleBase):
         default_permissions = dict(permissions=_default_perms)
         built_permissions = copy.deepcopy(default_permissions)
         for key in default_permissions["permissions"]:
-            if self.module.params["permissions"] is None:
-                built_permissions = default_permissions
-            else:
-                if self.module.params["permissions"][key] is not None:
-                    for key_2, value_2 in self.module.params["permissions"][
-                        key
-                    ].items():
-                        built_permissions["permissions"][key][key_2] = value_2
+            if "permissions" in self.module.params:
+                if isinstance(self.module.params["permissions"], dict):
+                    if key in self.module.params["permissions"]:
+                        if isinstance(self.module.params["permissions"][key], dict):
+                            for key_2, value_2 in self.module.params["permissions"][
+                                key
+                            ].items():
+                                built_permissions["permissions"][key][key_2] = value_2
         return built_permissions
 
     def build_ip_whitelist(self):
@@ -456,20 +464,46 @@ class NS1user(NS1ModuleBase):
             built_ip_whitelist["ip_whitelist"] = self.module.params["ip_whitelist"]
         return built_ip_whitelist
 
-    def build_changes(self):
+    def build_teams(self):
+        """Builds a list of strings modeled to be the same as the API call.
+
+        :return: A list
+        :rtype: list
+        """
+        built_teams = dict(teams=[])
+        if self.module.params["teams"] is not None:
+            team_list = self.ns1.team()
+            for team in self.module.params["teams"]:
+                for entry in team_list.list():
+                    if entry['name'] == team:
+                        built_teams['teams'].append(entry['id'])
+        return built_teams
+
+    def build_changes(self, email, username):
         """Builds a complete API call by assembling returned data from functions.
 
         :return: A complete API call.
         :rtype: dict
         """
+        # Create base dict of required module args for user creation/update.
         built_changes = dict(
-            name=self.module.params.get("name"),
+            username=username,
         )
-        built_changes.update(self.build_permissions())
+        built_changes.update({"2fa_enabled": self.module.params["two_fa_enabled"]})
+        # Put into its own function for future proofing against possible future data structure growth.
+        built_changes.update(self.build_notify())
+        # Check is done here to ensure email doesn't accidentally get overwritten while doing an update.
+        # Doesn't warrent the effort to create/manage a separate function.
+        if email is not None:
+            built_changes.update({"email": email})
+        built_changes.update(self.build_name(username))
+        built_changes.update({"ip_whitelist_strict": self.module.params["ip_whitelist_strict"]})
         built_changes.update(self.build_ip_whitelist())
+        built_changes.update(self.build_teams())
+        built_changes.update(self.build_permissions())
         return built_changes
 
-    def present(self, before, user_id):
+    def present(self, before, username, email):
         """Goes through the process of creating a new user, if needed, or
         updating a pre-existing one with new permissions.
 
@@ -482,22 +516,20 @@ class NS1user(NS1ModuleBase):
         :rtype: tuple(bool, dict)
         """
         changed = False
-        user = None
-        built_changes = self.build_changes()
+        after = None
+        built_changes = self.build_changes(email, username)
         if self.module.check_mode:
-            user = built_changes
+            after = built_changes
         else:
-            if user_id is None:
-                user = self.create(built_changes)
+            if before is None:
+                after = self.create(built_changes)
             else:
-                user = self.update(user_id, built_changes)
-        before = self.remove_ids(before)
-        user = self.remove_ids(user)
-        if user != before:
+                after = self.update(built_changes)
+        if after != before:
             changed = True
-        return changed, user
+        return changed, after
 
-    def absent(self, user_id):
+    def absent(self, before, username):
         """Deletes an existing user or reports back no change if the user
         does not exist to start with.
 
@@ -507,38 +539,25 @@ class NS1user(NS1ModuleBase):
         occurred and second value is the removed user object.
         :rtype: tuple(bool, dict)
         """
-        if user_id is None:
+        if before is None:
             return False
         else:
-            self.delete(user_id)
+            self.delete(username)
             return True
 
-    def get_user_id(self, before):
-        """Takes gathered information of a pre-existing user and looks for the
-        id required by update and delete actions.
-
-        :param before: Existing user info if it exists.
-        :type before: dict/none
-        :return: Id of an existing user.
-        :rtype: str
-        """
-        if before is not None:
-            user_id = before["id"]
-            return user_id
-
-    def check_existence(self, user_name):
+    def check_existence(self, username):
         """Does a call to see if the user given in ansible task params already
         exists to establish existing state before changes are made. Also, this
         is the first step in getting user_id for later changes.
 
-        :param user_name: Name parameter passed into the module from a task.
-        :type user_name: str
+        :param username: Name parameter passed into the module from a task.
+        :type username: str
         :return: user info before changes. If no info found then None will be returned.
         :rtype: dict/none
         """
         user_list = self.ns1.user()
         for user in user_list.list():
-            if user["username"] == user_name:
+            if user["username"] == username:
                 user_found = user
                 return user_found
 
@@ -551,28 +570,33 @@ class NS1user(NS1ModuleBase):
         """
         # Setup and gather info
         # Retreive the name passed into the module from a task.
-        user_name = self.module.params.get("username")
+        username = self.module.params.get("username")
         # Creates a var that will contain data of an existing user or be a None Type.
         # The None type is used for determining state.
-        before = self.check_existence(user_name)
-        # Passes in the `before` var for type comparision and returning required data for later calls if a user already exists.
-        user_id = self.get_user_id(before)
+        before = self.check_existence(username)
         # Take action based on module params with gathered info passed in.
         # Retreive desired state passed into the module from a task.
         state = self.module.params.get("state")
         # Action based on a user state being set to present.
         # Will result in a user being created or updated.
         if state == "present":
-            changed, user = self.present(before, user_id)
+            # Create var to be used for checking if new user creation criteria is met.
+            email = self.module.params.get("email")
+            # Perform check if all info to work with a user is given.
+            # If not then immediately fail module run.
+            # Done so a user email does not have to be provided if state == 'absent'.
+            if email is None and before is None:
+                return self.module.fail_json(msg="error: Email for creating user %s is missing " % username)
+            changed, after = self.present(before, username, email)
         # Action based on a user state being set to absent.
         # Assumes a user to remove already exists.
         if state == "absent":
-            changed = self.absent(user_name)
-            user = {}
+            changed = self.absent(before, username)
+            after = {}
         # Takes passed in state changes for id scrubbing and building of final output.
-        return self.build_result(changed, user, before, user_name)
+        return self.build_result(changed, after, before, username)
 
-    def build_result(self, changed, user, before, user_name):
+    def build_result(self, changed, after, before, username):
         """Builds dict of results from module execution to pass to module.exit_json()
 
         :param changed: Whether or not a change occurred.
@@ -581,18 +605,18 @@ class NS1user(NS1ModuleBase):
         :type user: dict
         :param before: Existing user info if it exists.
         :type before: dict/none
-        :param user_name: Name parameter passed into the module from a task.
-        :type user_name: str
+        :param username: Name parameter passed into the module from a task.
+        :type username: str
         :return: Results of module execution.
         :rtype: dict
         """
         result = {"changed": changed}
         if self.module._diff:
-            result.update(diff={"before": {}, "after": {}, "user": user_name})
+            result.update(diff={"before": {}, "after": {}, "user": username})
             if before is not None:
                 result["diff"]["before"] = before
-            if user is not None:
-                result["diff"]["after"] = user
+            if after is not None:
+                result["diff"]["after"] = after
         return result
 
 

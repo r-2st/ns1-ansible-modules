@@ -1,5 +1,6 @@
 ---
 - hosts: localhost
+  gather_facts: false
   tasks:
     ##########
     # Verify ansible test team is absent before starting.

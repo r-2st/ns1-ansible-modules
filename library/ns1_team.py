@@ -4,6 +4,7 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
+from typing import Dict
 
 __metaclass__ = type
 
@@ -387,14 +388,14 @@ class NS1Team(NS1ModuleBase):
         default_permissions = dict(permissions=_default_perms)
         built_permissions = copy.deepcopy(default_permissions)
         for key in default_permissions["permissions"]:
-            if self.module.params["permissions"] is None:
-                built_permissions = default_permissions
-            else:
-                if self.module.params["permissions"][key] is not None:
-                    for key_2, value_2 in self.module.params["permissions"][
-                        key
-                    ].items():
-                        built_permissions["permissions"][key][key_2] = value_2
+            if "permissions" in self.module.params:
+                if isinstance(self.module.params["permissions"], dict):
+                    if key in self.module.params["permissions"]:
+                        if isinstance(self.module.params["permissions"][key], dict):
+                            for key_2, value_2 in self.module.params["permissions"][
+                                key
+                            ].items():
+                                built_permissions["permissions"][key][key_2] = value_2
         return built_permissions
 
     def build_ip_whitelist(self):

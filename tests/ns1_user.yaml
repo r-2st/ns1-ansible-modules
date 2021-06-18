@@ -2,19 +2,58 @@
 - hosts: localhost
   gather_facts: false
   tasks:
+    # ##########
+    # # Verify ansible test user is absent before starting.
+    # ##########
+    # - name: setup
+    #   local_action:
+    #     module: ns1_user
+    #     apiKey: "{{ ns1_token }}"
+    #     username: "{{ test_user }}"
+    #     state: absent
+    #   register: user_setup
+
+    # - name: Verify setup
+    #   assert:
+    #     that:
+    #       - user_setup is success
+
     ##########
-    # Verify ansible test user is absent before starting.
+    # Test user creation
     ##########
-    - name: setup
+    - name: Test user creation
       local_action:
         module: ns1_user
         apiKey: "{{ ns1_token }}"
         username: "{{ test_user }}"
-        # email: "{{ test_user + '@pharmakom.net' }}"
-        state: absent
-      register: user_setup
+        name: "you little..."
+        email: "{{ test_user + '@pharmakom.net' }}"
+        state: present
+        teams:
+          - "kowalski"
+          - "rico"
+      register: user_create
 
-    - name: Verify setup
+    - name: Verify user creation
       assert:
         that:
-          - user_setup is success
+          - user_create is changed
+          - user_create.diff.after.username == "{{ test_user }}"
+
+    ##########
+    # Test user name change
+    ##########
+    - name: Test user name change
+      local_action:
+        module: ns1_user
+        apiKey: "{{ ns1_token }}"
+        username: "{{ test_user }}"
+        name: "Damn it Shinji"
+        state: present
+      register: user_name_update
+
+    - name: Verify user creation
+      assert:
+        that:
+          - user_create is changed
+          - user_create.diff.after.username == "{{ test_user }}"
